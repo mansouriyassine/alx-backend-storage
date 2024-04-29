@@ -24,7 +24,10 @@ def get_nginx_statistics() -> Tuple:
         count = collection.count_documents({'method': method})
         method_counts.append({'method': method, 'count': count})
     total_count = collection.estimated_document_count()
-    status_check_count = collection.count_documents({'method': 'GET', 'path': '/status'})
+    status_check_count = collection.count_documents({
+        'method': 'GET',
+        'path': '/status'
+        })
     client.close()
     return total_count, method_counts, status_check_count
 

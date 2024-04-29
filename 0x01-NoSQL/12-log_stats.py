@@ -22,7 +22,10 @@ def nginx_log_stats():
         count = collection.count_documents({'method': method})
         method_counts[method] = count
 
-    status_check_count = collection.count_documents({'method': 'GET', 'path': '/status'})
+    status_check_count = collection.count_documents({
+        'method': 'GET',
+        'path': '/status'
+        })
 
     client.close()
 

@@ -1,1 +1,4 @@
-#!/usr/bin/env bash
+// Insert a document in the collection school
+db.school.insertOne({
+    name: "Holberton school"
+})

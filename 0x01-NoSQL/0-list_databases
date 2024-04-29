@@ -1,1 +1,21 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
+"""
+Script that lists all databases in MongoDB.
+"""
+
+import pymongo
+
+def list_databases():
+    """Function to list all databases in MongoDB."""
+    # Connect to MongoDB server
+    client = pymongo.MongoClient('mongodb://localhost:27017/')
+
+    # Get the list of databases
+    databases = client.list_database_names()
+
+    # Print the list of databases
+    for db in databases:
+        print(db)
+
+if __name__ == "__main__":
+    list_databases()

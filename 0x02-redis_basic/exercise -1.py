@@ -5,7 +5,6 @@ Cache module
 import redis
 import uuid
 from typing import Union, Callable, Optional
-from functools import wraps
 
 class Cache:
     """
@@ -16,17 +15,6 @@ class Cache:
         self._redis = redis.Redis()
         self._redis.flushdb()
 
-    @staticmethod
-    def count_calls(method: Callable) -> Callable:
-        """Decorator to count method calls"""
-        @wraps(method)
-        def wrapper(self, *args, **kwargs):
-            key = method.__qualname__
-            self._redis.incr(key)
-            return method(self, *args, **kwargs)
-        return wrapper
-
-    @count_calls
     def store(self, data: Union[str, bytes, int, float]) -> str:
         """
         Store data in Redis and return the key
@@ -62,9 +50,12 @@ class Cache:
 if __name__ == "__main__":
     cache = Cache()
 
-    cache.store(b"first")
-    print(cache.get("Cache.store"))
+    TEST_CASES = {
+        b"foo": None,
+        123: int,
+        "bar": lambda d: d.decode("utf-8")
+    }
 
-    cache.store(b"second")
-    cache.store(b"third")
-    print(cache.get("Cache.store"))
+    for value, fn in TEST_CASES.items():
+        key = cache.store(value)
+        assert cache.get(key, fn=fn) == value

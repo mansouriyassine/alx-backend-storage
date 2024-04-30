@@ -2,34 +2,20 @@
 """
 Cache module
 """
-import redis
 import uuid
-from typing import Union, Callable, Optional
-from functools import wraps
+import redis
+from typing import Union, Callable, Any
+import functools
 
 class Cache:
     """
     Cache class for storing data in Redis
     """
-    # Class-level dictionary to store method call counts
-    _counts = {}
-
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialize Cache instance with Redis client"""
         self._redis = redis.Redis()
         self._redis.flushdb()
 
-    @classmethod
-    def count_calls(cls, method: Callable) -> Callable:
-        """Decorator to count method calls"""
-        @wraps(method)
-        def wrapper(self, *args, **kwargs):
-            key = method.__qualname__
-            cls._counts[key] = cls._counts.get(key, 0) + 1
-            return method(self, *args, **kwargs)
-        return wrapper
-
-    @count_calls
     def store(self, data: Union[str, bytes, int, float]) -> str:
         """
         Store data in Redis and return the key
@@ -38,40 +24,75 @@ class Cache:
         self._redis.set(key, data)
         return key
 
-    def get(self, key: str, fn: Optional[Callable] = None) -> Union[str, bytes, int, float, None]:
+    def get(self, key: str, fn: Callable = None) -> Any:
         """
         Retrieve data from Redis with the given key
         If fn is provided, apply the conversion function to the retrieved data
         """
-        data = self._redis.get(key)
-        if data is None:
+        if not self._redis.exists(key):
             return None
-        if fn is not None:
-            return fn(data)
-        return data
+        value = self._redis.get(key)
+        if fn:
+            return fn(value)
+        return value
 
-    def get_str(self, key: str) -> Optional[str]:
+    def get_str(self, key: str) -> str:
         """
         Retrieve string data from Redis with the given key
         """
-        return self.get(key, fn=lambda d: d.decode("utf-8"))
+        return self.get(key, fn=lambda x: x.decode('utf-8'))
 
-    def get_int(self, key: str) -> Optional[int]:
+    def get_int(self, key: str) -> int:
         """
         Retrieve integer data from Redis with the given key
         """
         return self.get(key, fn=int)
 
+    @staticmethod
+    def count_calls(method: Callable) -> Callable:
+        """
+        Decorator to count method calls
+        """
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            key = method.__qualname__
+            count = self._redis.incr(key)
+            return method(self, *args, **kwargs)
+        return wrapper
+
+    @staticmethod
+    def call_history(method: Callable) -> Callable:
+        """
+        Decorator to store history of inputs and outputs for a function
+        """
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            key = method.__qualname__
+            inputs_key = f"{key}:inputs"
+            outputs_key = f"{key}:outputs"
+            self._redis.rpush(inputs_key, str(args))
+            result = method(self, *args, **kwargs)
+            self._redis.rpush(outputs_key, result)
+            return result
+        return wrapper
+
+    def replay(self, func: Callable) -> None:
+        """
+        Display the history of calls of a particular function
+        """
+        inputs_key = f"{func.__qualname__}:inputs"
+        outputs_key = f"{func.__qualname__}:outputs"
+        inputs = self._redis.lrange(inputs_key, 0, -1)
+        outputs = self._redis.lrange(outputs_key, 0, -1)
+        print(f"{func.__qualname__} was called {len(inputs)} times:")
+        for inp, out in zip(inputs, outputs):
+            print(f"{func.__qualname__}(*{inp.decode('utf-8')}) -> {out.decode('utf-8')}")
 
 if __name__ == "__main__":
     cache = Cache()
-
-    TEST_CASES = {
-        b"foo": None,
-        123: int,
-        "bar": lambda d: d.decode("utf-8")
-    }
-
-    for value, fn in TEST_CASES.items():
-        key = cache.store(value)
-        assert cache.get(key, fn=fn) == value
+    cache.store = cache.count_calls(cache.store)
+    cache.store = cache.call_history(cache.store)
+    cache.store(b"first")
+    cache.store(b"second")
+    cache.store(b"third")
+    cache.replay(cache.store)

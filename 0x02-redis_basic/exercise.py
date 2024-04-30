@@ -62,9 +62,12 @@ class Cache:
 if __name__ == "__main__":
     cache = Cache()
 
-    cache.store(b"first")
-    print(cache.get("Cache.store"))
+    TEST_CASES = {
+        b"foo": None,
+        123: int,
+        "bar": lambda d: d.decode("utf-8")
+    }
 
-    cache.store(b"second")
-    cache.store(b"third")
-    print(cache.get("Cache.store"))
+    for value, fn in TEST_CASES.items():
+        key = cache.store(value)
+        assert cache.get(key, fn=fn) == value

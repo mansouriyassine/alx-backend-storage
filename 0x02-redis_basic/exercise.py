@@ -7,6 +7,7 @@ import uuid
 from typing import Union, Callable, Optional
 from functools import wraps
 
+
 class Cache:
     """
     Cache class for storing data in Redis
@@ -15,6 +16,7 @@ class Cache:
         """Initialize Cache instance with Redis client"""
         self._redis = redis.Redis()
         self._redis.flushdb()
+
 
     @staticmethod
     def count_calls(method: Callable) -> Callable:
@@ -26,6 +28,7 @@ class Cache:
             return method(self, *args, **kwargs)
         return wrapper
 
+
     @count_calls
     def store(self, data: Union[str, bytes, int, float]) -> str:
         """
@@ -35,7 +38,9 @@ class Cache:
         self._redis.set(key, data)
         return key
 
-    def get(self, key: str, fn: Optional[Callable] = None) -> Union[str, bytes, int, float, None]:
+
+    def get(self, key: str,
+            fn: Optional[Callable] = None) -> Union[str, bytes, int, float, None]:
         """
         Retrieve data from Redis with the given key
         If fn is provided, apply the conversion function to the retrieved data
@@ -47,17 +52,20 @@ class Cache:
             return fn(data)
         return data
 
+
     def get_str(self, key: str) -> Optional[str]:
         """
         Retrieve string data from Redis with the given key
         """
         return self.get(key, fn=lambda d: d.decode("utf-8"))
 
+
     def get_int(self, key: str) -> Optional[int]:
         """
         Retrieve integer data from Redis with the given key
         """
         return self.get(key, fn=int)
+
 
 if __name__ == "__main__":
     cache = Cache()

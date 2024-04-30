@@ -5,31 +5,28 @@ Cache module
 import redis
 import uuid
 from typing import Union, Callable, Optional
-import functools
-
+from functools import wraps
 
 class Cache:
     """
     Cache class for storing data in Redis
     """
+    # Class-level dictionary to store method call counts
+    _counts = {}
+
     def __init__(self) -> None:
         """Initialize Cache instance with Redis client"""
         self._redis = redis.Redis()
         self._redis.flushdb()
 
-    @staticmethod
-    def count_calls(method: Callable) -> Callable:
-        """
-        Decorator to count method calls
-        """
-        counts = {}
-
-        @functools.wraps(method)
+    @classmethod
+    def count_calls(cls, method: Callable) -> Callable:
+        """Decorator to count method calls"""
+        @wraps(method)
         def wrapper(self, *args, **kwargs):
             key = method.__qualname__
-            counts[key] = counts.get(key, 0) + 1
+            cls._counts[key] = cls._counts.get(key, 0) + 1
             return method(self, *args, **kwargs)
-
         return wrapper
 
     @count_calls
